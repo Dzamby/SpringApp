@@ -3,8 +3,7 @@ name: Deploy Spring Boot App to AWS
 on:
   workflow_dispatch:  # manual trigger only
 
-env:
-  AWS_REGION: us-east-1                  
+env:             
   ECR_REPOSITORY: spring-boot-app         # Should match var.app_name in terraform
   ECS_CLUSTER: spring-boot-app-cluster    # Should match cluster name in terraform
   ECS_SERVICE: spring-boot-app-service    # Should match service name in terraform
@@ -23,24 +22,24 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
           
       - name: Create S3 State Backend
         continue-on-error: true
         run: |
           # Create S3 bucket for Terraform state
           aws s3api create-bucket \
-            --bucket ${{ env.S3_BUCKET }} \
+            --bucket ${{ secrets.S3_BUCKET }} \
             --region us-east-1
           
           # Enable bucket versioning
           aws s3api put-bucket-versioning \
-            --bucket ${{ env.S3_BUCKET }} \
+            --bucket ${{ secrets.S3_BUCKET }} \
             --versioning-configuration Status=Enabled
           
           # Enable default encryption
           aws s3api put-bucket-encryption \
-            --bucket ${{ env.S3_BUCKET }} \
+            --bucket ${{ secrets.S3_BUCKET }} \
             --server-side-encryption-configuration '{
               "Rules": [
                 {
@@ -108,7 +107,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
       
       - name: Login to Amazon ECR
         id: login-ecr
