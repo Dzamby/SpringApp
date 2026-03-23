@@ -3,13 +3,11 @@ name: Setup TF and Build App
 on:
   workflow_dispatch:  # manual trigger only
 
-env:
-  AWS_REGION: us-east-1                  
+env:          
   ECR_REPOSITORY: spring-boot-app         # Should match var.app_name in terraform
   ECS_CLUSTER: spring-boot-app-cluster    # Should match cluster name in terraform
   ECS_SERVICE: spring-boot-app-service    # Should match service name in terraform
   TASK_DEFINITION: task-definition.json
-  S3_BUCKET: terraform-state-spring-boot-app-marianf
 jobs:
   terraform:
     name: "Terraform Infrastructure"
@@ -29,24 +27,24 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
           
       - name: Create S3 State Backend
         continue-on-error: true
         run: |
           # Create S3 bucket for Terraform state
           aws s3api create-bucket \
-            --bucket terraform-state-spring-boot-app \
+            --bucket ${{ secrets.S3_BUCKET }} \
             --region us-east-1
           
           # Enable bucket versioning
           aws s3api put-bucket-versioning \
-            --bucket terraform-state-spring-boot-app \
+            --bucket ${{ secrets.S3_BUCKET }} \
             --versioning-configuration Status=Enabled
           
           # Enable default encryption
           aws s3api put-bucket-encryption \
-            --bucket terraform-state-spring-boot-app \
+            --bucket ${{ secrets.S3_BUCKET }} \
             --server-side-encryption-configuration '{
               "Rules": [
                 {
@@ -56,6 +54,7 @@ jobs:
                 }
               ]
             }'
+            
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
@@ -70,7 +69,7 @@ jobs:
 
       - name: Delete S3 bucket (Terraform State)
         run: |
-          bucket={{ env.S3_BUCKET }}
+          bucket=${{ secrets.S3_BUCKET }}
           token=""
           
           while : ; do
@@ -91,7 +90,7 @@ jobs:
             token=$(jq -r '.NextToken // empty' <<<"$resp")
             [ -z "$token" ] && break
           done
-          aws s3 rb s3://{{ env.S3_BUCKET }} --force
+          aws s3 rb s3://${{ secrets.S3_BUCKET }} --force
           
   build:
     name: "Build"
